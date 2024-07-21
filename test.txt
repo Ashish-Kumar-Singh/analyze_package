@@ -1,0 +1,90 @@
+# Test File for YARA Rules
+
+# ChromeAppDataAccess Rule
+# Path to Chrome AppData (ASCII, Unicode, Obfuscated)
+C:\Users\Example\AppData\Local\Google\Chrome
+
+C\x00:\x00\\U\x00s\x00e\x00r\x00s\x00\\E\x00x\x00a\x00m\x00p\x00l\x00e\x00\\A\x00p\x00p\x00D\x00a\x00t\x00a\x00\\L\x00o\x00c\x00a\x00l\x00\\G\x00o\x00o\x00g\x00l\x00e\x00\\C\x00h\x00r\x00o\x00m\x00e\x00
+
+C:\U\p\p\D\a\t\a\L\o\c\a\l\G\o\o\g\l\e\C\h\r\o\m\e
+
+C:\%41%70%70%44%61%74%61%4C%6F%63%61%6C%47%6F%6F%67%6C%65%43%68%72%6F%6D%65
+
+# File Access Operations
+open
+\x6F\x00\x70\x00\x65\x00\x6E\x00
+o p e n
+
+read
+\x72\x00\x65\x00\x61\x00\x64\x00
+r e a d
+
+write
+\x77\x00\x72\x00\x69\x00\x74\x00\x65\x00
+w r i t e
+
+create
+\x63\x00\x72\x00\x65\x00\x61\x00\x74\x00\x65\x00
+c r e a t e
+
+delete
+\x64\x00\x65\x00\x6C\x00\x65\x00\x74\x00\x65\x00
+d e l e t e
+
+# DetectNetUserCommandAdvanced Rule
+net user
+\x6E\x00\x65\x00\x74\x00\x20\x00\x75\x00\x73\x00\x65\x00\x72\x00
+n e t u s e r
+n%20user
+
+# DetectCredentialManagerAccess Rule
+credui.dll
+vaultcli.dll
+cmdkey
+rundll32.exe keymgr.dll,KRShowKeyMgr
+rundll32.exe vaultcli.dll,VaultEnumerateItems
+
+# DetectPasswordDumping Rule
+mimikatz
+sekurlsa
+lsadump
+dumpcreds
+procdump
+samdump
+ntdsutil
+
+# NonPyPIURL Rule
+http://example.com
+https://malicious.site
+http://example.com/other
+https://notpypi.com
+https://pypi.org/project/somepackage
+
+# DetectSystemInfoAndEventLogTampering Rule
+systeminfo
+wevtutil cl
+wevtutil epl
+
+# DetectWMIandPowerShellDataAccess Rule
+wmic useraccount get
+wmic computersystem get
+Get-WmiObject
+Get-ADUser
+Get-CimInstance
+Get-WmiObject -Class Win32_UserAccount
+Get-CimInstance -ClassName Win32_ComputerSystem
+
+# DetectNetViewUsage Rule
+net view
+
+# DetectTaskSchedulerManipulation Rule
+schtasks /create
+schtasks /delete
+schtasks /change
+schtasks /query
+
+# DetectNetLocalgroupUsage Rule
+net localgroup add
+net localgroup delete
+net localgroup members
+net localgroup administrato
