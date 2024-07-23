@@ -115,9 +115,10 @@ if exist requirements.txt (
 
 :: Scan the package with YARA rule using yara_scan.py
 echo Scanning package: %PACKAGE_FILE% with yara_scan.py
-python c:/scripts/yara_scan.py %EXTRACTED_DIR% > yara_temp.txt
+python c:/scripts/yara_scan.py %EXTRACTED_DIR% > yara_temp.txt 2>&1
 set /p YARA_RESULT=<yara_temp.txt
-del yara_temp.txt
+type yara_temp.txt
+del yara_temp.txt > nul
 
 :: Check YARA scan result for matches
 echo %YARA_RESULT% | findstr /c:"Files with matches: 0, Total matches: 0" >nul

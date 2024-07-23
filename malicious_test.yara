@@ -46,7 +46,7 @@ rule DetectNetUserCommandAdvanced {
     meta:
         description = "Detects the use of the 'net user' command with variations"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
         version = "1.1"
 
     strings:
@@ -63,7 +63,7 @@ rule DetectCredentialManagerAccess {
     meta:
         description = "Detects access to Windows Credential Manager"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $credui = "credui.dll" nocase
@@ -80,7 +80,7 @@ rule DetectPasswordDumping {
     meta:
         description = "Detects common methods of password dumping on Windows"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $mimikatz = "mimikatz" nocase
@@ -90,6 +90,22 @@ rule DetectPasswordDumping {
         $procdump = "procdump" nocase
         $samdump = "samdump" nocase
         $ntdsutil = "ntdsutil" nocase
+
+        $mimikatz_unicode = { 6D 00 69 00 6D 00 69 00 6B 00 61 00 74 00 7A 00 }  // Unicode "mimikatz"
+        $sekurlsa_unicode = { 73 00 65 00 6B 00 75 00 72 00 6C 00 73 00 61 00 }  // Unicode "sekurlsa"
+        $lsadump_unicode = { 6C 00 73 00 61 00 64 00 75 00 6D 00 70 00 }  // Unicode "lsadump"
+        $dumpcreds_unicode = { 64 00 75 00 6D 00 70 00 63 00 72 00 65 00 64 00 73 00 }  // Unicode "dumpcreds"
+        $procdump_unicode = { 70 00 72 00 6F 00 63 00 64 00 75 00 6D 00 70 00 }  // Unicode "procdump"
+        $samdump_unicode = { 73 00 61 00 6D 00 64 00 75 00 6D 00 70 00 }  // Unicode "samdump"
+        $ntdsutil_unicode = { 6E 00 74 00 64 00 73 00 75 00 74 00 69 00 6C 00 }  // Unicode "ntdsutil"
+
+        $mimikatz_obfuscated = "m i m i k a t z"  // Spaces between characters
+        $sekurlsa_obfuscated = "s e k u r l s a"  // Spaces between characters
+        $lsadump_obfuscated = "l s a d u m p"  // Spaces between characters
+        $dumpcreds_obfuscated = "d u m p c r e d s"  // Spaces between characters
+        $procdump_obfuscated = "p r o c d u m p"  // Spaces between characters
+        $samdump_obfuscated = "s a m d u m p"  // Spaces between characters
+        $ntdsutil_obfuscated = "n t d s u t i l"  // Spaces between characters
 
     condition:
         any of them
@@ -126,7 +142,7 @@ rule DetectSystemInfoAndEventLogTampering {
     meta:
         description = "Detects the use of 'systeminfo' and 'wevtutil' commands for reconnaissance and event log tampering"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $systeminfo = "systeminfo" nocase
@@ -141,7 +157,7 @@ rule DetectWMIandPowerShellDataAccess {
     meta:
         description = "Detects the use of WMI and PowerShell for accessing user data"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         // WMI Queries
@@ -164,7 +180,7 @@ rule DetectNetViewUsage {
     meta:
         description = "Detects the use of 'net view' command for network reconnaissance"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $net_view = "net view" nocase
@@ -177,7 +193,7 @@ rule DetectTaskSchedulerManipulation {
     meta:
         description = "Detects manipulation of Task Scheduler, which can be used for persistence or executing malicious tasks"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $schtasks_create = "schtasks /create" nocase
@@ -193,7 +209,7 @@ rule DetectNetLocalgroupUsage {
     meta:
         description = "Detects the use of 'net localgroup' command for enumerating or modifying local group memberships"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $net_localgroup_add = "net localgroup add" nocase
@@ -209,7 +225,7 @@ rule DetectSuspiciousAccessToUserDirectories {
     meta:
         description = "Detects suspicious access to user directories potentially for data exfiltration"
         author = "Ashish Singh"
-        date = "2024-07-21"
+        date = "2024-07-15"
 
     strings:
         $temp_files = "%TEMP%\\" nocase

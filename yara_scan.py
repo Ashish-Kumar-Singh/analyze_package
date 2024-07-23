@@ -16,7 +16,7 @@ def scan_directory(directory):
         files_with_matches, total_matches = scan_files(directory, rules)
     else:
         match_count = scan_file(directory, rules)
-        if match_count > 0:
+        if match_count is not None and match_count > 0:
             files_with_matches = 1
             total_matches = match_count
 
@@ -37,20 +37,40 @@ def scan_files(directory, rules):
     return files_with_matches, total_matches
 
 def scan_file(file_path, rules):
+    # Severity mapping
+    severity_mapping = {
+        "DetectPasswordDumping": "High",
+        "DetectWMIandPowerShellDataAccess": "High",
+        "DetectTaskSchedulerManipulation": "High",
+        "DetectCredentialManagerAccess": "High",
+        "DetectSystemInfoAndEventLogTampering": "High",
+        "DetectNetLocalgroupUsage": "High",
+        "DetectNetUserCommandAdvanced": "High",
+        "DetectNetViewUsage": "High",
+        "DetectSuspiciousAccessToUserDirectories": "Medium",
+        "ChromeAppDataAccess": "Medium",
+        "NonPyPIURL": "Low",
+    }
+
     with open(file_path, 'rb') as f:
         data = f.read()
 
     matches = rules.match(data=data)
     match_count = len(matches)
 
-    if matches:
+    # Sort matches by severity
+    sorted_matches = sorted(matches, key=lambda x: ("High", "Medium", "Low").index(severity_mapping.get(x.rule, "Low")))
+
+    if sorted_matches:
         print(f"String matches found in file: {file_path}")
-        for match in matches:
-            print(f"Rule: {match.rule}")
+        for match in sorted_matches:
+            severity = severity_mapping.get(match.rule, "Unknown")
+            print(f"Rule: {match.rule} (Severity: {severity})")
             print(f"Matched strings: {match.strings}")
             print()
 
     return match_count
+
 
 if __name__ == "__main__":
     # Check if the correct number of arguments is provided
