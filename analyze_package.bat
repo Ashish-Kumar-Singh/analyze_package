@@ -33,12 +33,25 @@ for /f "tokens=*" %%i in ('python c:/scripts/analyse_package.py %PACKAGE_NAME%')
         set "PACKAGE_URL=!OUTPUT:~5!"
     ) else if "!OUTPUT:~0,6!"=="Score:" (
         set "SCORE=!OUTPUT:~7!"
+        echo DEBUG: Score=!SCORE!
+        set "GLOBAL_SCORE=!SCORE!"
     )
 )
 
 :: Debugging output
 echo DEBUG: Package URL=%PACKAGE_URL%
 echo DEBUG: Score=%SCORE%
+
+if %SCORE% GEQ 5 (
+    goto :CONTINUES
+) else (
+    echo The vulnerability score is below 5, please refer to the vulnerability report.
+    echo FAILED
+    goto :END
+)
+
+:CONTINUES
+
 
 :: Check if the URL was captured
 if "%PACKAGE_URL%"=="" (
@@ -87,7 +100,7 @@ findstr /c:"!FILE_HASH!" "%HASH_FILE%" >nul
 
 if %errorlevel% equ 0 (
     echo Hash already exists in %HASH_FILE%, stopping further analysis.
-    goto :END
+    goto :INSTALL_PACKAGE
 ) else (
     echo Hash not found in %HASH_FILE%, continuing analysis.
 )
@@ -113,19 +126,6 @@ if "%EXTRACTED_DIR%"=="" (
     exit /b 1
 )
 
-:: List dependencies from requirements.txt if it exists within the whole directory
-set REQUIREMENTS_FILE=
-set REQor /r %%f in (requirements.txt) do (
-   set REQUIREMENTS_FIL=%%f
- )
-:FOUND_REQUIREMENTS
-
-if defined REQUIREMENTS_FILE (
-    echo Listing dependencies from !REQUIREMENTS_FILE!:
-    type "!REQUIREMENTS_FILE!"
-) else (
-    echo No requirements.txt found.
-)
 :: Check if __init__.py exists
 if not exist "__init__.py" (
     echo No __init__.py found, creating a placeholder.
@@ -155,14 +155,13 @@ del yara_temp.txt > nul
 echo %YARA_RESULT% | findstr /c:"Files with matches: 0, Total matches: 0" >nul
 if %errorlevel% neq 0 (
     echo ERROR: yara_scan.py identified potential issues with %PACKAGE_FILE%.
+    echo The hash %FILE_HASH% for file %PACKAGE_FILE% can be used to update %HASH_FILE% if it is a false positive.
+    echo FAILED
     cd %~dp0
     rd /s /q "%WORK_DIR%"
     exit /b 1
 ) else (
-    echo No YARA matches found. Proceeding with hash storage.
-    :: Append the file name and hash to the hash storage CSV file
-    echo %PACKAGE_FILE%,%FILE_HASH% >> "%HASH_FILE%"
-    echo The hash %FILE_HASH% for file %PACKAGE_FILE% has been added to %HASH_FILE%.
+    echo No YARA matches found. Proceeding with statiuc analysis.
 )
 
 :: Run static analysis
@@ -170,41 +169,69 @@ echo Running Pylint...
 pylint . > pylint_report.txt
 
 set PYLINT_SCORE=0
-for /f "tokens=6 delims= " %%i in ('type pylint_report.txt ^| findstr /c:"Your code has been rated at"') do (
-    set "SCORE=%%i"
+set "filepath=pylint_report.txt"
+
+
+:: Read the text file line by line to find the Pylint rating
+for /f "tokens=*" %%A in (%filepath%) do (
+    set "line=%%A"
+    :: Find the line containing the rating
+    if "!line:Your code has been rated at=!" neq "!line!" (
+        :: Extract the part of the line that contains the rating
+        set "line=!line:Your code has been rated at =!"
+        for /f "tokens=1 delims=/" %%B in ("!line!") do (
+            set "rating=%%B"
+        )
+    )
 )
 
-:: Check if SCORE was set
-if not defined SCORE (
-    echo ERROR: Pylint analysis failed.
-    cd %~dp0
-    rd /s /q "%WORK_DIR%"
-    exit /b 1
+:: Check if the rating was found and set PYLINT_SCORE
+if defined rating (
+    set "rating=%rating:.=,%"
+    powershell -Command "$rating=[double]::Parse('%rating:,=.%'); Write-Output $rating" > temp_rating.txt
+    set /p rating=<temp_rating.txt
+    del temp_rating.txt
+    set PYLINT_SCORE=%rating%
+) else (
+    echo Cannot find pylint score in the file.
+    set PYLINT_SCORE=0
 )
 
-:: Remove the decimal point from the SCORE and convert it to a numeric value
-echo SCORE before conversion: %SCORE%
-set "SCORE=%SCORE:.=%"
-echo SCORE after conversion: %SCORE%
-set /a PYLINT_SCORE=%SCORE%
+:: Convert PYLINT_SCORE to integer for calculations
+set "int_pylint_score=%PYLINT_SCORE:.=%"
 
 :: Calculate average score
-echo PYLINT_SCORE: %PYLINT_SCORE%
-if %PYLINT_SCORE%==0 (
-    set AVERAGE_SCORE=%SCORE%
+if %int_pylint_score%==0 (
+    echo Pylint score not found, using global score found through vulnerability analysis.
+    set AVERAGE_SCORE=%GLOBAL_SCORE%
 ) else (
-    set /a AVERAGE_SCORE=(%SCORE% + %PYLINT_SCORE%) / 2
+    powershell -Command "$avg=[math]::Round((%PYLINT_SCORE% + %GLOBAL_SCORE%) / 2, 2); Write-Output $avg" > temp_avg.txt
+    set /p AVERAGE_SCORE=<temp_avg.txt
+    del temp_avg.txt
 )
+
+echo PYLINT_SCORE: %PYLINT_SCORE%
+echo AVERAGE_SCORE: %AVERAGE_SCORE%
 
 :: Check if average score is higher than 6
 if %AVERAGE_SCORE% GEQ 6 (
-    :: Store the score in a file for future use
-    echo %PACKAGE_NAME%,%AVERAGE_SCORE% >> "%HASH_FILE%"
+    :: Append the file name and hash to the hash storage CSV file
+    echo %PACKAGE_FILE%,%FILE_HASH% >> "%HASH_FILE%"
+    echo The hash %FILE_HASH% for file %PACKAGE_FILE% has been added to %HASH_FILE%.
+    echo PASSED
+    goto :INSTALL_PACKAGE
+) else (
+    echo The average score is below 6, please refer to the vulnerability report.
+    echo FAILED
+    goto :END
 )
+
+:INSTALL_PACKAGE
+cd %~dp0
+rd /s /q "%WORK_DIR%"
+echo Installing the package...
+pip install %PACKAGE_NAME%
 
 :END
 cd %~dp0
-rd /s /q "%WORK_DIR%"
 
-
-echo Analysis complete!
