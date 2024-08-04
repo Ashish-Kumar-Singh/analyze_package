@@ -36,8 +36,8 @@ def get_package_download_url(package_name, version=None):
         raise Exception(f"Failed to fetch data for package {package_name} with version {version}")
 
 
-def check_pypi_vulnerabilities(package_name):
-    url = f"https://pypi.org/pypi/{package_name}/json"
+def check_pypi_vulnerabilities(package_name, version=None):
+    url = f"https://pypi.org/pypi/{package_name}/{version}/json"
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
@@ -77,14 +77,23 @@ def get_package_names(dependencies):
             package_names.append(match.group(0).strip())
     return package_names
 
-def get_package_dependencies(package_name):
-    url = f"https://pypi.org/pypi/{package_name}/json"
+def get_package_dependencies(package_name, version=None):
+    if version:
+        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+    else:
+        url = f"https://pypi.org/pypi/{package_name}/json"
     response = requests.get(url)
+
+    print(url)
 
     if response.status_code == 200:
         data = response.json()
-        dependencies = data['info'].get('requires_dist', [])
-        return dependencies
+        try:
+            dependencies = data['info'].get('requires_dist', [])
+            return dependencies
+        except KeyError:
+            print(f"No dependencies found for {package_name}")
+            return None
     else:
         raise Exception(f"Failed to fetch data for package {package_name}")
 
@@ -103,20 +112,22 @@ def get_open_source_vulnerabilities(package_name):
     if response.status_code == 200:
         scorecard_data = response.json()
         score = scorecard_data.get("score", None)
-        print(f"OpenSSF scorecard={scorecard_data['score']}")
+        print(f"OpenSSF, package {package_name} scorecard={scorecard_data['score']}")
         return score
     else:
         print(f"Failed to fetch scorecard data: {response.status_code}")
         return None
 
 
-def generate_report(package_name):
-    vulnerabilities = check_pypi_vulnerabilities(package_name)
-
+def generate_report(package_name,version= None, vulnerabilities=None):
     if not vulnerabilities:
         return
 
-    report_file = f"{package_name}_vulnerability_report.txt"
+    if version:
+        report_file = f"{package_name}_{version}_vulnerability_report.txt"
+    else:
+        report_file = f"{package_name}_vulnerability_report.txt"
+
     with open(report_file, "w", encoding="utf-8") as file:
         file.write(f"Vulnerability Report for {package_name}\n")
         file.write("-" * 40 + "\n\n")
@@ -150,7 +161,6 @@ def get_safety_score(package_name,dependencies):
     open_source_score = get_open_source_vulnerabilities(package_name)
     if open_source_score is not None and open_source_score < 5:
         print(f"Score: {round(open_source_score, 1)}")
-        generate_report(package_name)
         sys.exit(1)
 
     package_score = open_source_score
@@ -172,14 +182,27 @@ def main():
     args = parser.parse_args()
 
     package_name = args.package_name
+    version = None
+
+    match = re.match(r"^(?P<name>[\w\-]+)-(?P<version>[\d\.]+)$", package_name)
+
+    if match:
+        package_name = match.group("name")
+        version = match.group("version")
+        print(f"Package Name: {package_name}")
+        print(f"Version: {version}")
 
     try:
-        download_url = get_package_download_url(package_name)
+        download_url = get_package_download_url(package_name, version)
         print(f"URL: {download_url}")
-        dependencies = get_package_dependencies(package_name)
-        package_score = get_safety_score(package_name, dependencies)
-        print(f"Score: {round(package_score, 1)}")
-        generate_report(package_name)
+        dependencies = get_package_dependencies(package_name, version)
+        vulnerabilities = check_pypi_vulnerabilities(package_name, version)
+        if not vulnerabilities:
+            print(f"No vulnerabilities found for {package_name}, proceeding with score calculation")
+            package_score = get_safety_score(package_name, dependencies)
+            print(f"Score: {round(package_score, 1)}")
+        else:
+            generate_report(package_name,version, vulnerabilities)
 
     except Exception as e:
         print(e)

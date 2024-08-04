@@ -37,7 +37,7 @@ def scan_files(directory, rules):
     return files_with_matches, total_matches
 
 def scan_file(file_path, rules):
-    # Severity mapping
+
     severity_mapping = {
         "DetectPasswordDumping": "High",
         "DetectWMIandPowerShellDataAccess": "High",
