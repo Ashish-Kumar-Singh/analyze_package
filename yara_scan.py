@@ -61,13 +61,16 @@ def scan_file(file_path, rules):
     # Sort matches by severity
     sorted_matches = sorted(matches, key=lambda x: ("High", "Medium", "Low").index(severity_mapping.get(x.rule, "Low")))
 
+
+    output_file = f"c:/scripts/yara-matches.txt"
     if sorted_matches:
-        print(f"String matches found in file: {file_path}")
-        for match in sorted_matches:
-            severity = severity_mapping.get(match.rule, "Unknown")
-            print(f"Rule: {match.rule} (Severity: {severity})")
-            print(f"Matched strings: {match.strings}")
-            print()
+        with open(output_file, 'a') as out_f:
+            out_f.write(f"String matches found in file: {file_path}\n")
+            for match in sorted_matches:
+                severity = severity_mapping.get(match.rule, "Unknown")
+                out_f.write(f"Rule: {match.rule} (Severity: {severity})\n")
+                out_f.write(f"Matched strings: {match.strings}\n")
+                out_f.write("\n")
 
     return match_count
 

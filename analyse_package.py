@@ -37,13 +37,15 @@ def get_package_download_url(package_name, version=None):
 
 
 def check_pypi_vulnerabilities(package_name, version=None):
-    url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+    if version:
+        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+    else:
+        url = f"https://pypi.org/pypi/{package_name}/json"
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
         vulnerabilities = data["vulnerabilities"]
         if (len(vulnerabilities) == 0):
-            print(f"No vulnerabilities found for {package_name}")
             return None
 
         return vulnerabilities

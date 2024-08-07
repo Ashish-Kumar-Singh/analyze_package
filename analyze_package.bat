@@ -38,10 +38,6 @@ for /f "tokens=*" %%i in ('python c:/scripts/analyse_package.py %PACKAGE_NAME%')
     )
 )
 
-:: Debugging output
-echo DEBUG: Package URL=%PACKAGE_URL%
-echo DEBUG: Score=%SCORE%
-
 if %SCORE% GEQ 5 (
     goto :CONTINUES
 ) else (
@@ -144,54 +140,6 @@ if exist requirements.txt (
     )
 )
 
-set "setup_file=setup.py"
-set "root_dir=%EXTRACTED_DIR%"
-set "shell_command_found=0"
-
-for /r "%root_dir%" %%f in (%setup_file%) do (
-    if exist "%%f" (
-        echo Checking %%f for shell command execution...
-
-        for /f "tokens=*" %%i in (
-            'findstr /i "subprocess.run subprocess.call subprocess.Popen os.popen commands.getoutput" "%%f"'
-        ) do (
-            set "shell_command_found=1"
-            echo "Shell command execution detected in %%f:"
-            echo %%i
-            echo.
-        )
-    ) else (
-        echo "Cannot open %%f. File does not exist or access is denied."
-    )
-)
-
-
-if %shell_command_found% neq 0 (
-    echo "Shell command executions were detected in one or more setup.py files."
-    echo FAILED
-    goto :END
-) else (
-    echo "No shell command executions detected in any setup.py files."
-)
-
-:CheckShellScripts
-echo Checking for shell script files in %EXTRACTED_DIR%...
-
-set /a SHELL_SCRIPT_COUNT=0
-
-for /r "%EXTRACTED_DIR%" %%f in (*.sh) do (
-    set /a SHELL_SCRIPT_COUNT+=1
-)
-
-if %SHELL_SCRIPT_COUNT% gtr 1 (
-    echo ERROR: More than one shell script file found in %EXTRACTED_DIR%.
-    echo FAILED
-    cd %~dp0
-    rd /s /q "%WORK_DIR%"
-    exit /b 1
-) else (
-    echo Shell script file count: %SHELL_SCRIPT_COUNT%
-)
 
 :: Scan the package with YARA rule using yara_scan.py
 echo Scanning package: %PACKAGE_FILE% with yara_scan.py
