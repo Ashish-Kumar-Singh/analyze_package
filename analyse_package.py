@@ -4,53 +4,25 @@ import argparse
 import re
 
 
-def get_package_download_url(package_name, version=None):
-    if version:
-        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
-    else:
-        url = f"https://pypi.org/pypi/{package_name}/json"
-
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
+def get_package_download_url(package_name, json_data, version=None):
+    download_url = None
+    for url_info in json_data['urls']:
+        if url_info['packagetype'] == 'sdist' and url_info['url'].endswith('.tar.gz'):
+            download_url = url_info['url']
+            break
+    if not download_url:
         if version:
-            download_url = None
-            for url_info in data['urls']:
-                if url_info['packagetype'] == 'sdist' and url_info['url'].endswith('.tar.gz'):
-                    download_url = url_info['url']
-                    break
-            if not download_url:
-                raise Exception(f"No tar.gz download URL found for package {package_name} with version {version}")
-
+            raise Exception(f"No tar.gz download URL found for package {package_name} with version {version}")
         else:
-            download_url = None
-            for url_info in data['urls']:
-                if url_info['packagetype'] == 'sdist' and url_info['url'].endswith('.tar.gz'):
-                    download_url = url_info['url']
-                    break
-            if not download_url:
-                raise Exception(f"No tar.gz download URL found for package {package_name} with latest version")
-        return download_url
-    else:
-        raise Exception(f"Failed to fetch data for package {package_name} with version {version}")
+            raise Exception(f"No tar.gz download URL found for package {package_name} with latest version")
+    return download_url
 
 
-def check_pypi_vulnerabilities(package_name, version=None):
-    if version:
-        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
-    else:
-        url = f"https://pypi.org/pypi/{package_name}/json"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        vulnerabilities = data["vulnerabilities"]
+def check_pypi_vulnerabilities(json_data):
+        vulnerabilities = json_data["vulnerabilities"]
         if (len(vulnerabilities) == 0):
             return None
-
         return vulnerabilities
-    else:
-        return None
 
 
 def get_package_source(package_name):
@@ -79,25 +51,13 @@ def get_package_names(dependencies):
             package_names.append(match.group(0).strip())
     return package_names
 
-def get_package_dependencies(package_name, version=None):
-    if version:
-        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
-    else:
-        url = f"https://pypi.org/pypi/{package_name}/json"
-    response = requests.get(url)
-
-    print(url)
-
-    if response.status_code == 200:
-        data = response.json()
+def get_package_dependencies(package_name, json_data):
         try:
-            dependencies = data['info'].get('requires_dist', [])
+            dependencies = json_data['info'].get('requires_dist', [])
             return dependencies
         except KeyError:
             print(f"No dependencies found for {package_name}")
             return None
-    else:
-        raise Exception(f"Failed to fetch data for package {package_name}")
 
 
 def get_open_source_vulnerabilities(package_name):
@@ -126,9 +86,9 @@ def generate_report(package_name,version= None, vulnerabilities=None):
         return
 
     if version:
-        report_file = f"{package_name}_{version}_vulnerability_report.txt"
+        report_file = f"c:/scripts/{package_name}_{version}_vulnerability_report.txt"
     else:
-        report_file = f"{package_name}_vulnerability_report.txt"
+        report_file = f"c:/scripts/{package_name}_vulnerability_report.txt"
 
     with open(report_file, "w", encoding="utf-8") as file:
         file.write(f"Vulnerability Report for {package_name}\n")
@@ -176,6 +136,18 @@ def get_safety_score(package_name,dependencies):
 
     return package_score
 
+def get_package_data(package_name, version=None):
+    if version:
+        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+    else:
+        url = f"https://pypi.org/pypi/{package_name}/json"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(f"Failed to fetch data for package {package_name}")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -195,10 +167,13 @@ def main():
         print(f"Version: {version}")
 
     try:
-        download_url = get_package_download_url(package_name, version)
+        json_data = get_package_data(package_name, version)
+        if json_data is None:
+            raise Exception("Failed to fetch package data")
+        download_url = get_package_download_url(package_name, json_data, version)
         print(f"URL: {download_url}")
-        dependencies = get_package_dependencies(package_name, version)
-        vulnerabilities = check_pypi_vulnerabilities(package_name, version)
+        dependencies = get_package_dependencies(package_name, json_data)
+        vulnerabilities = check_pypi_vulnerabilities(json_data)
         if not vulnerabilities:
             print(f"No vulnerabilities found for {package_name}, proceeding with score calculation")
             package_score = get_safety_score(package_name, dependencies)
